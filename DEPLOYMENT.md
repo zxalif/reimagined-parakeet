@@ -97,13 +97,26 @@ TTL: 3600
 
 ### 5. Environment Variables
 
-Create a `.env.production` file or set environment variables:
+Create a `.env.production` file:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.clienthunt.app
-NODE_ENV=production
-PORT=9200
+# Copy the example file
+cp .env.production.example .env.production
+
+# Edit with your values
+nano .env.production
 ```
+
+Or set environment variables directly:
+
+```bash
+export NEXT_PUBLIC_API_URL=https://api.clienthunt.app
+export NEXT_PUBLIC_ADMIN_URL=https://admin.clienthunt.app
+export NODE_ENV=production
+export PORT=9200
+```
+
+**Important**: The `.env.production` file is gitignored. Make sure to set these environment variables on your production server.
 
 ---
 

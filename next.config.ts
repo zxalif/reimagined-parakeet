@@ -24,6 +24,29 @@ const nextConfig: NextConfig = {
   // Headers for security
   async headers() {
     const isDev = process.env.NODE_ENV === 'development';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || (isDev ? 'http://localhost:7300' : 'https://api.clienthunt.app');
+    
+    // Build connect-src directive based on environment
+    // In production, only allow HTTPS API URL (strictly no localhost)
+    // In development, allow localhost for local API
+    let connectSrc = "'self'";
+    if (isDev) {
+      // Development: allow localhost
+      connectSrc += " http://localhost:7300";
+      // Also add configured API URL if set and different from localhost
+      if (apiUrl && !apiUrl.includes('localhost') && apiUrl.startsWith('http')) {
+        connectSrc += ` ${apiUrl}`;
+      }
+    } else {
+      // Production: ONLY allow HTTPS API URL (strictly no localhost)
+      // This prevents CSP violations when the app tries to connect to localhost
+      if (apiUrl && apiUrl.startsWith('https://')) {
+        connectSrc += ` ${apiUrl}`;
+      } else {
+        // Fallback to default production API (always HTTPS)
+        connectSrc += " https://api.clienthunt.app";
+      }
+    }
     
     // Strict CSP for admin panel
     const cspDirectives = [
@@ -32,14 +55,14 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https:",
-      "connect-src 'self' http://localhost:7300 https://api.clienthunt.app",
+      `connect-src ${connectSrc}`,
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'", // Admin panel should not be embedded
     ];
     
-    // In production, remove unsafe-eval
+    // In production, remove unsafe-eval and add upgrade-insecure-requests
     if (!isDev) {
       const productionCsp = cspDirectives.map(directive => 
         directive.replace(" 'unsafe-eval'", "")

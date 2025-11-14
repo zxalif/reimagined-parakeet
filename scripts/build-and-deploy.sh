@@ -42,6 +42,19 @@ fi
 
 echo -e "${YELLOW}Step 2: Building Next.js application...${NC}"
 
+# Check if .env.production exists and load it
+if [ -f ".env.production" ]; then
+    echo -e "${YELLOW}  Loading environment variables from .env.production...${NC}"
+    export $(cat .env.production | grep -v '^#' | xargs)
+    echo -e "${GREEN}✓ Environment variables loaded${NC}"
+else
+    echo -e "${YELLOW}  ⚠ Warning: .env.production not found${NC}"
+    echo -e "${YELLOW}  Using default production values (https://api.clienthunt.app)${NC}"
+    # Set defaults if not already set
+    export NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-'https://api.clienthunt.app'}
+    export NEXT_PUBLIC_ADMIN_URL=${NEXT_PUBLIC_ADMIN_URL:-'https://admin.clienthunt.app'}
+fi
+
 # Build the application
 npm run build
 
