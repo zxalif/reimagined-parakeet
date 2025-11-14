@@ -12,6 +12,8 @@ import {
   Menu,
   X,
   MessageSquare,
+  FileText,
+  Eye,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
@@ -96,6 +98,8 @@ export default function AdminLayoutClient({
     { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { href: '/support', label: 'Support', icon: MessageSquare },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { href: '/audit-logs', label: 'Audit Logs', icon: FileText },
+    { href: '/page-visits', label: 'Page Visits', icon: Eye },
   ];
 
   return (

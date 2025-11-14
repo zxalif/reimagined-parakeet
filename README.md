@@ -21,6 +21,24 @@ npm run build
 npm start
 ```
 
+## Deployment
+
+Use the build-and-deploy script for automated deployment:
+
+```bash
+# Run the build and deploy script
+./scripts/build-and-deploy.sh
+```
+
+The script will:
+1. Install/update dependencies
+2. Build the Next.js application
+3. Copy static files to standalone directory
+4. Optionally restart PM2 with zero-downtime reload
+
+**PM2 Process Name**: `admin-clienthunt`  
+**Port**: 9200
+
 ## Environment Variables
 
 Create `.env.local`:
