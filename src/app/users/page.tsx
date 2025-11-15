@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import Link from 'next/link';
+import { apiRequest } from '@/lib/api/client';
 import { 
   Search, 
   Edit, 
@@ -12,6 +12,8 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  MailCheck,
+  Send,
 } from 'lucide-react';
 
 interface User {
@@ -25,6 +27,8 @@ interface User {
   created_at: string;
   has_active_subscription: boolean;
   subscription_plan: string | null;
+  keyword_count?: number;
+  opportunity_count?: number;
 }
 
 export default function AdminUsersPage() {
@@ -53,7 +57,6 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('auth_token');
       const params = new URLSearchParams({
         skip: String((page - 1) * limit),
         limit: String(limit),
@@ -64,16 +67,14 @@ export default function AdminUsersPage() {
       if (filters.is_verified !== null) params.append('is_verified', String(filters.is_verified));
       if (filters.has_subscription !== null) params.append('has_subscription', String(filters.has_subscription));
 
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      const response = await apiRequest<{users: User[], total: number}>(
+        `/api/v1/admin/users?${params.toString()}`,
+        { method: 'GET' }
       );
-      setUsers(response.data.users || response.data || []);
-      setTotal(response.data.total || response.data.length || 0);
+      setUsers(response.users || response as any || []);
+      setTotal(response.total || (response as any).length || 0);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load users');
+      setError(err.detail || 'Failed to load users');
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -82,15 +83,13 @@ export default function AdminUsersPage() {
 
   const handleActivate = async (userId: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users/${userId}/activate`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/api/v1/admin/users/${userId}/activate`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
       fetchUsers();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to activate user');
+      alert(err.detail || 'Failed to activate user');
     }
   };
 
@@ -98,15 +97,13 @@ export default function AdminUsersPage() {
     if (!confirm('Are you sure you want to deactivate this user?')) return;
     
     try {
-      const token = localStorage.getItem('auth_token');
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users/${userId}/deactivate`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/api/v1/admin/users/${userId}/deactivate`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
       fetchUsers();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to deactivate user');
+      alert(err.detail || 'Failed to deactivate user');
     }
   };
 
@@ -114,14 +111,12 @@ export default function AdminUsersPage() {
     if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
     
     try {
-      const token = localStorage.getItem('auth_token');
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users/${userId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/api/v1/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
       fetchUsers();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete user');
+      alert(err.detail || 'Failed to delete user');
     }
   };
 
@@ -129,29 +124,25 @@ export default function AdminUsersPage() {
     if (!confirm('Are you sure you want to ban this user? They will not be able to login.')) return;
     
     try {
-      const token = localStorage.getItem('auth_token');
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users/${userId}/ban`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/api/v1/admin/users/${userId}/ban`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
       fetchUsers();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to ban user');
+      alert(err.detail || 'Failed to ban user');
     }
   };
 
   const handleUnban = async (userId: string) => {
     try {
-      const token = localStorage.getItem('auth_token');
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users/${userId}/unban`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await apiRequest(`/api/v1/admin/users/${userId}/unban`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
       fetchUsers();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to unban user');
+      alert(err.detail || 'Failed to unban user');
     }
   };
 
@@ -160,26 +151,54 @@ export default function AdminUsersPage() {
     
     try {
       setSendingEmail(true);
-      const token = localStorage.getItem('auth_token');
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7300'}/api/v1/admin/users/${selectedUser.id}/send-email`,
-        {
+      await apiRequest(`/api/v1/admin/users/${selectedUser.id}/send-email`, {
+        method: 'POST',
+        body: JSON.stringify({
           to_email: selectedUser.email,
           subject: emailSubject,
           message: emailMessage,
           html: true
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+        }),
+      });
       alert('Email sent successfully!');
       setShowEmailModal(false);
       setEmailSubject('');
       setEmailMessage('');
       setSelectedUser(null);
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to send email');
+      alert(err.detail || 'Failed to send email');
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const handleSendVerificationEmail = async (userId: string) => {
+    if (!confirm('Send verification email to this user?')) return;
+    
+    try {
+      await apiRequest(`/api/v1/admin/users/${userId}/send-verification-email`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      alert('Verification email sent successfully!');
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.detail || 'Failed to send verification email');
+    }
+  };
+
+  const handleVerifyEmail = async (userId: string) => {
+    if (!confirm('Manually verify this user\'s email address?')) return;
+    
+    try {
+      await apiRequest(`/api/v1/admin/users/${userId}/verify-email`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      alert('User email verified successfully!');
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.detail || 'Failed to verify email');
     }
   };
 
@@ -371,6 +390,24 @@ export default function AdminUsersPage() {
                       >
                         <Mail className="w-4 h-4" />
                       </button>
+                      {!user.is_verified && (
+                        <>
+                          <button
+                            onClick={() => handleSendVerificationEmail(user.id)}
+                            className="text-purple-600 hover:text-purple-900 p-1"
+                            title="Send Verification Email"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleVerifyEmail(user.id)}
+                            className="text-green-600 hover:text-green-900 p-1"
+                            title="Verify Email"
+                          >
+                            <MailCheck className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                       {user.is_banned ? (
                         <button
                           onClick={() => handleUnban(user.id)}

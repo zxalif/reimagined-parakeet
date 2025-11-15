@@ -14,6 +14,7 @@ import {
   MessageSquare,
   FileText,
   Eye,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 
@@ -95,6 +96,7 @@ export default function AdminLayoutClient({
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/users', label: 'Users', icon: Users },
+    { href: '/user-stats', label: 'User Stats', icon: TrendingUp },
     { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { href: '/support', label: 'Support', icon: MessageSquare },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },

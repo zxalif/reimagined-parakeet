@@ -73,15 +73,42 @@ if [ ! -d ".next/standalone" ]; then
     exit 1
 fi
 
-echo -e "${YELLOW}Step 3: Copying static files...${NC}"
+echo -e "${YELLOW}Step 3: Copying required Next.js files...${NC}"
 
-# Copy .next/static to standalone/.next/static
-if [ -d ".next/static" ]; then
-    mkdir -p .next/standalone/.next/static
-    cp -r .next/static/* .next/standalone/.next/static/
-    echo -e "${GREEN}✓ Copied .next/static files (includes optimized images)${NC}"
+# Copy .next directory structure to standalone/.next
+# This is required for Next.js standalone mode to work correctly
+if [ -d ".next" ]; then
+    # Create .next directory in standalone
+    mkdir -p .next/standalone/.next
+    
+    # Copy static files (includes CSS, JS, and optimized images)
+    if [ -d ".next/static" ]; then
+        mkdir -p .next/standalone/.next/static
+        cp -r .next/static/* .next/standalone/.next/static/
+        echo -e "${GREEN}✓ Copied .next/static files (includes CSS, JS, and optimized images)${NC}"
+    else
+        echo -e "${YELLOW}⚠ Warning: .next/static directory not found${NC}"
+    fi
+    
+    # Copy server build files (required for standalone mode)
+    # These files are needed for Next.js to run properly and serve static assets
+    if [ -d ".next/server" ]; then
+        mkdir -p .next/standalone/.next/server
+        # Copy all manifest files from server directory
+        find .next/server -maxdepth 1 -name "*.json" -type f -exec cp {} .next/standalone/.next/server/ \; 2>/dev/null || true
+        echo -e "${GREEN}✓ Copied Next.js server manifest files${NC}"
+    fi
+    
+    # Copy root-level manifest files (required for routing and asset serving)
+    for manifest in "routes-manifest.json" "prerender-manifest.json" "BUILD_ID" "package.json" "middleware-manifest.json"; do
+        if [ -f ".next/${manifest}" ]; then
+            cp ".next/${manifest}" .next/standalone/.next/ 2>/dev/null || true
+        fi
+    done
+    echo -e "${GREEN}✓ Copied Next.js root manifest files${NC}"
 else
-    echo -e "${YELLOW}⚠ Warning: .next/static directory not found${NC}"
+    echo -e "${RED}❌ Error: .next directory not found!${NC}"
+    exit 1
 fi
 
 # Copy public folder to standalone/public (if it exists)

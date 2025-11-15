@@ -128,12 +128,13 @@ export const apiRequest = async <T>(
   });
 
   // If we get a 403 with CSRF error, try to refresh the token and retry once
-  if (!response.ok && response.status === 403) {
+  if (!response.ok) {
     // Clone the response to read it without consuming the body
     const responseClone = response.clone();
     const errorData = await responseClone.json().catch(() => ({}));
     
-    if (errorData.detail && errorData.detail.includes('CSRF')) {
+    // Check if it's a CSRF error (403 status)
+    if (response.status === 403 && errorData.detail && errorData.detail.includes('CSRF')) {
       // Try to fetch a new CSRF token
       const newToken = await ensureCsrfToken();
       if (newToken && method !== 'GET') {
@@ -157,12 +158,20 @@ export const apiRequest = async <T>(
     }
     
     // Not a CSRF error or retry failed, throw the original error
-    const error: ApiError = await response.json().catch(() => ({
-      detail: `HTTP ${response.status}: ${response.statusText}`,
-    }));
+    const error: ApiError = errorData.detail 
+      ? errorData 
+      : { detail: `HTTP ${response.status}: ${response.statusText}` };
     throw error;
   }
 
-  return response.json();
+  // Handle empty responses (204 No Content, etc.)
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  }
+  
+  // For non-JSON responses, return empty object or text
+  const text = await response.text();
+  return (text ? JSON.parse(text) : {}) as T;
 };
 
