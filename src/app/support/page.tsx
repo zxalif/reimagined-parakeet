@@ -189,7 +189,7 @@ export default function AdminSupportPage() {
                     </div>
                   </td>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                    {new Date(thread.updated_at).toLocaleDateString()}
+                    {formatDateTime(thread.updated_at)}
                   </td>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link

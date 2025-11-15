@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils/date';
 
 interface Subscription {
   id: string;
@@ -175,15 +176,15 @@ export default function AdminSubscriptionsPage() {
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
                     {sub.current_period_start && sub.current_period_end ? (
                       <div>
-                        <div>{new Date(sub.current_period_start).toLocaleDateString()}</div>
-                        <div className="text-xs text-gray-400">to {new Date(sub.current_period_end).toLocaleDateString()}</div>
+                        <div>{formatDateTime(sub.current_period_start)}</div>
+                        <div className="text-xs text-gray-400">to {formatDateTime(sub.current_period_end)}</div>
                       </div>
                     ) : (
                       <span className="text-gray-400">N/A</span>
                     )}
                   </td>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                    {new Date(sub.created_at).toLocaleDateString()}
+                    {formatDateTime(sub.created_at)}
                   </td>
                 </tr>
               ))}

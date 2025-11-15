@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { apiRequest } from '@/lib/api/client';
+import { formatDateTime } from '@/lib/utils/date';
 import { MessageSquare, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 interface Message {
@@ -167,7 +168,7 @@ export default function SupportThreadDetailPage() {
                   {message.sender === 'support' ? 'Support Team' : thread.user_name}
                 </span>
                 <span className="text-xs text-gray-500">
-                  {new Date(message.created_at).toLocaleString()}
+                  {formatDateTime(message.created_at)}
                 </span>
               </div>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{message.content}</p>

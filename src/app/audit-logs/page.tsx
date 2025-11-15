@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api/client';
+import { formatDateTime } from '@/lib/utils/date';
 import { 
   Search, 
   Filter,
@@ -171,16 +172,8 @@ export default function AuditLogsPage() {
     setPage(1);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  // Use the shared formatDateTime utility
+  const formatDate = formatDateTime;
 
   const formatAction = (action: string) => {
     return action

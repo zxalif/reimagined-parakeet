@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api/client';
+import { formatDateTime } from '@/lib/utils/date';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { toast } from '@/components/ui/Toast';
@@ -476,7 +477,7 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                    {new Date(user.created_at).toLocaleDateString()}
+                    {formatDateTime(user.created_at)}
                   </td>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-1 flex-wrap">
@@ -608,7 +609,7 @@ export default function AdminUsersPage() {
               <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  <span>{new Date(user.created_at).toLocaleDateString()}</span>
+                      <span>{formatDateTime(user.created_at)}</span>
                 </div>
               </div>
 

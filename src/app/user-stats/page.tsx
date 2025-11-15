@@ -282,7 +282,7 @@ export default function UserStatsPage() {
                     </div>
                   </td>
                   <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden lg:table-cell">
-                    {new Date(user.created_at).toLocaleDateString()}
+                    {formatDateTime(user.created_at)}
                   </td>
                 </tr>
               ))}

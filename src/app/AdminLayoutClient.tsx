@@ -15,6 +15,8 @@ import {
   FileText,
   Eye,
   TrendingUp,
+  Activity,
+  TestTube,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ToastContainer, useToastState } from '@/components/ui/Toast';
@@ -97,12 +99,14 @@ export default function AdminLayoutClient({
   const navItems = [
     { href: '/', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/users', label: 'Users', icon: Users },
+    { href: '/e2e-tests', label: 'E2E Tests', icon: TestTube },
     { href: '/user-stats', label: 'User Stats', icon: TrendingUp },
     { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
     { href: '/support', label: 'Support', icon: MessageSquare },
     { href: '/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/audit-logs', label: 'Audit Logs', icon: FileText },
     { href: '/page-visits', label: 'Page Visits', icon: Eye },
+    { href: '/status', label: 'System Status', icon: Activity },
   ];
 
   return (
