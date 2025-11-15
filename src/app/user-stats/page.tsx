@@ -10,6 +10,7 @@ import {
   Briefcase,
   TrendingUp,
 } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils/date';
 
 interface UserStats {
   id: string;

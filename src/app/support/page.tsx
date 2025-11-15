@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api/client';
 import Link from 'next/link';
 import { MessageSquare, Search, Filter, CheckCircle, XCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils/date';
 
 interface SupportThread {
   id: string;
