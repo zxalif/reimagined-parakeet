@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api/client';
+import { Modal } from '@/components/ui/Modal';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { toast } from '@/components/ui/Toast';
 import { 
   Search, 
   Edit, 
@@ -14,6 +17,7 @@ import {
   ChevronRight,
   MailCheck,
   Send,
+  Calendar,
 } from 'lucide-react';
 
 interface User {
@@ -48,6 +52,29 @@ export default function AdminUsersPage() {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailMessage, setEmailMessage] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+  
+  // Modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+    isLoading?: boolean;
+    confirmText?: string;
+    cancelText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    onConfirm: () => {},
+    isLoading: false,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+  });
+  const [actionUserId, setActionUserId] = useState<string | null>(null);
+  
   const limit = 20;
 
   useEffect(() => {
@@ -87,51 +114,93 @@ export default function AdminUsersPage() {
         method: 'POST',
         body: JSON.stringify({}),
       });
+      toast.success('User activated successfully');
       fetchUsers();
     } catch (err: any) {
-      alert(err.detail || 'Failed to activate user');
+      toast.error(err.detail || 'Failed to activate user');
     }
   };
 
-  const handleDeactivate = async (userId: string) => {
-    if (!confirm('Are you sure you want to deactivate this user?')) return;
-    
-    try {
-      await apiRequest(`/api/v1/admin/users/${userId}/deactivate`, {
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
-      fetchUsers();
-    } catch (err: any) {
-      alert(err.detail || 'Failed to deactivate user');
-    }
+  const handleDeactivate = (userId: string) => {
+    setActionUserId(userId);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Deactivate User',
+      message: 'Are you sure you want to deactivate this user? They will not be able to access their account.',
+      variant: 'warning',
+      onConfirm: async () => {
+        if (!actionUserId) return;
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        try {
+          await apiRequest(`/api/v1/admin/users/${actionUserId}/deactivate`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+          });
+          toast.success('User deactivated successfully');
+          setConfirmModal({ ...confirmModal, isOpen: false, isLoading: false });
+          setActionUserId(null);
+          fetchUsers();
+        } catch (err: any) {
+          toast.error(err.detail || 'Failed to deactivate user');
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-    
-    try {
-      await apiRequest(`/api/v1/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
-      fetchUsers();
-    } catch (err: any) {
-      alert(err.detail || 'Failed to delete user');
-    }
+  const handleDelete = (userId: string) => {
+    setActionUserId(userId);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete User',
+      message: 'Are you sure you want to delete this user? This action cannot be undone and will permanently remove all user data.',
+      variant: 'danger',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        if (!actionUserId) return;
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        try {
+          await apiRequest(`/api/v1/admin/users/${actionUserId}`, {
+            method: 'DELETE',
+          });
+          toast.success('User deleted successfully');
+          setConfirmModal({ ...confirmModal, isOpen: false, isLoading: false });
+          setActionUserId(null);
+          fetchUsers();
+        } catch (err: any) {
+          toast.error(err.detail || 'Failed to delete user');
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
-  const handleBan = async (userId: string) => {
-    if (!confirm('Are you sure you want to ban this user? They will not be able to login.')) return;
-    
-    try {
-      await apiRequest(`/api/v1/admin/users/${userId}/ban`, {
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
-      fetchUsers();
-    } catch (err: any) {
-      alert(err.detail || 'Failed to ban user');
-    }
+  const handleBan = (userId: string) => {
+    setActionUserId(userId);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Ban User',
+      message: 'Are you sure you want to ban this user? They will not be able to login or access their account.',
+      variant: 'danger',
+      confirmText: 'Ban User',
+      onConfirm: async () => {
+        if (!actionUserId) return;
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        try {
+          await apiRequest(`/api/v1/admin/users/${actionUserId}/ban`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+          });
+          toast.success('User banned successfully');
+          setConfirmModal({ ...confirmModal, isOpen: false, isLoading: false });
+          setActionUserId(null);
+          fetchUsers();
+        } catch (err: any) {
+          toast.error(err.detail || 'Failed to ban user');
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handleUnban = async (userId: string) => {
@@ -140,14 +209,18 @@ export default function AdminUsersPage() {
         method: 'POST',
         body: JSON.stringify({}),
       });
+      toast.success('User unbanned successfully');
       fetchUsers();
     } catch (err: any) {
-      alert(err.detail || 'Failed to unban user');
+      toast.error(err.detail || 'Failed to unban user');
     }
   };
 
   const handleSendEmail = async () => {
-    if (!selectedUser || !emailSubject || !emailMessage) return;
+    if (!selectedUser || !emailSubject || !emailMessage) {
+      toast.warning('Please fill in both subject and message');
+      return;
+    }
     
     try {
       setSendingEmail(true);
@@ -160,46 +233,72 @@ export default function AdminUsersPage() {
           html: true
         }),
       });
-      alert('Email sent successfully!');
+      toast.success('Email sent successfully!');
       setShowEmailModal(false);
       setEmailSubject('');
       setEmailMessage('');
       setSelectedUser(null);
     } catch (err: any) {
-      alert(err.detail || 'Failed to send email');
+      toast.error(err.detail || 'Failed to send email');
     } finally {
       setSendingEmail(false);
     }
   };
 
-  const handleSendVerificationEmail = async (userId: string) => {
-    if (!confirm('Send verification email to this user?')) return;
-    
-    try {
-      await apiRequest(`/api/v1/admin/users/${userId}/send-verification-email`, {
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
-      alert('Verification email sent successfully!');
-      fetchUsers();
-    } catch (err: any) {
-      alert(err.detail || 'Failed to send verification email');
-    }
+  const handleSendVerificationEmail = (userId: string) => {
+    setActionUserId(userId);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Send Verification Email',
+      message: 'Send a verification email to this user?',
+      variant: 'info',
+      confirmText: 'Send Email',
+      onConfirm: async () => {
+        if (!actionUserId) return;
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        try {
+          await apiRequest(`/api/v1/admin/users/${actionUserId}/send-verification-email`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+          });
+          toast.success('Verification email sent successfully!');
+          setConfirmModal({ ...confirmModal, isOpen: false, isLoading: false });
+          setActionUserId(null);
+          fetchUsers();
+        } catch (err: any) {
+          toast.error(err.detail || 'Failed to send verification email');
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
-  const handleVerifyEmail = async (userId: string) => {
-    if (!confirm('Manually verify this user\'s email address?')) return;
-    
-    try {
-      await apiRequest(`/api/v1/admin/users/${userId}/verify-email`, {
-        method: 'POST',
-        body: JSON.stringify({}),
-      });
-      alert('User email verified successfully!');
-      fetchUsers();
-    } catch (err: any) {
-      alert(err.detail || 'Failed to verify email');
-    }
+  const handleVerifyEmail = (userId: string) => {
+    setActionUserId(userId);
+    setConfirmModal({
+      isOpen: true,
+      title: 'Verify Email',
+      message: 'Manually verify this user\'s email address?',
+      variant: 'info',
+      confirmText: 'Verify Email',
+      onConfirm: async () => {
+        if (!actionUserId) return;
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        try {
+          await apiRequest(`/api/v1/admin/users/${actionUserId}/verify-email`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+          });
+          toast.success('User email verified successfully!');
+          setConfirmModal({ ...confirmModal, isOpen: false, isLoading: false });
+          setActionUserId(null);
+          fetchUsers();
+        } catch (err: any) {
+          toast.error(err.detail || 'Failed to verify email');
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -286,7 +385,8 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -459,6 +559,144 @@ export default function AdminUsersPage() {
           </table>
         </div>
 
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {users.map((user) => (
+            <div key={user.id} className="p-4 hover:bg-gray-50">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{user.full_name}</div>
+                  <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                </div>
+                {user.is_admin && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 ml-2 flex-shrink-0">
+                    Admin
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-1 mb-3">
+                {user.is_banned ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Banned
+                  </span>
+                ) : user.is_active ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    Inactive
+                  </span>
+                )}
+                {user.is_verified ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Verified
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    Unverified
+                  </span>
+                )}
+                {user.has_active_subscription && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    {user.subscription_plan || 'Subscribed'}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>{new Date(user.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setShowEmailModal(true);
+                  }}
+                  className="text-blue-600 hover:text-blue-900 p-2 rounded hover:bg-blue-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  title="Send Email"
+                  aria-label="Send Email"
+                >
+                  <Mail className="w-4 h-4" />
+                </button>
+                {!user.is_verified && (
+                  <>
+                    <button
+                      onClick={() => handleSendVerificationEmail(user.id)}
+                      className="text-purple-600 hover:text-purple-900 p-2 rounded hover:bg-purple-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      title="Send Verification Email"
+                      aria-label="Send Verification Email"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleVerifyEmail(user.id)}
+                      className="text-green-600 hover:text-green-900 p-2 rounded hover:bg-green-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      title="Verify Email"
+                      aria-label="Verify Email"
+                    >
+                      <MailCheck className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                {user.is_banned ? (
+                  <button
+                    onClick={() => handleUnban(user.id)}
+                    className="text-green-600 hover:text-green-900 p-2 rounded hover:bg-green-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    title="Unban"
+                    aria-label="Unban"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <>
+                    {user.is_active ? (
+                      <button
+                        onClick={() => handleDeactivate(user.id)}
+                        className="text-yellow-600 hover:text-yellow-900 p-2 rounded hover:bg-yellow-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        title="Deactivate"
+                        aria-label="Deactivate"
+                      >
+                        <UserX className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleActivate(user.id)}
+                        className="text-green-600 hover:text-green-900 p-2 rounded hover:bg-green-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        title="Activate"
+                        aria-label="Activate"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleBan(user.id)}
+                      className="text-orange-600 hover:text-orange-900 p-2 rounded hover:bg-orange-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      title="Ban"
+                      aria-label="Ban"
+                    >
+                      <UserX className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => handleDelete(user.id)}
+                  className="text-red-600 hover:text-red-900 p-2 rounded hover:bg-red-50 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  title="Delete"
+                  aria-label="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {total > 0 && (
           <div className="bg-gray-50 px-4 md:px-6 py-4 border-t border-gray-200">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -492,66 +730,94 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Email Modal */}
-      {showEmailModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Send Email to {selectedUser.full_name}</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
-                  <input
-                    type="email"
-                    value={selectedUser.email}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                  <input
-                    type="text"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    placeholder="Email subject"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                  <textarea
-                    value={emailMessage}
-                    onChange={(e) => setEmailMessage(e.target.value)}
-                    placeholder="Email message (supports HTML)"
-                    rows={8}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowEmailModal(false);
-                    setEmailSubject('');
-                    setEmailMessage('');
-                    setSelectedUser(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSendEmail}
-                  disabled={!emailSubject || !emailMessage || sendingEmail}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {sendingEmail ? 'Sending...' : 'Send Email'}
-                </button>
-              </div>
+      <Modal
+        isOpen={showEmailModal}
+        onClose={() => {
+          setShowEmailModal(false);
+          setEmailSubject('');
+          setEmailMessage('');
+          setSelectedUser(null);
+        }}
+        title={selectedUser ? `Send Email to ${selectedUser.full_name}` : 'Send Email'}
+        size="lg"
+      >
+        {selectedUser && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
+              <input
+                type="email"
+                value={selectedUser.email}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Email subject"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <textarea
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                placeholder="Email message (supports HTML)"
+                rows={8}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowEmailModal(false);
+                  setEmailSubject('');
+                  setEmailMessage('');
+                  setSelectedUser(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors min-h-[44px]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={!emailSubject || !emailMessage || sendingEmail}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-h-[44px]"
+              >
+                {sendingEmail ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                    Sending...
+                  </span>
+                ) : (
+                  'Send Email'
+                )}
+              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => {
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          setActionUserId(null);
+        }}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+        isLoading={confirmModal.isLoading}
+        confirmText={confirmModal.confirmText || 'Confirm'}
+        cancelText={confirmModal.cancelText || 'Cancel'}
+      />
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">

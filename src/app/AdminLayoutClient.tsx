@@ -17,6 +17,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { ToastContainer, useToastState } from '@/components/ui/Toast';
 
 /**
  * Admin Layout Client Component
@@ -197,7 +198,16 @@ export default function AdminLayoutClient({
           {children}
         </main>
       </div>
+
+      {/* Toast Container */}
+      <ToastProvider />
     </div>
   );
+}
+
+// Toast Provider Component
+function ToastProvider() {
+  const { toasts, removeToast } = useToastState();
+  return <ToastContainer toasts={toasts} onClose={removeToast} />;
 }
 
