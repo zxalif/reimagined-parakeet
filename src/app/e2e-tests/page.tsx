@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiRequest } from '@/lib/api/client';
 import { toast } from '@/components/ui/Toast';
+import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { formatDateTime } from '@/lib/utils/date';
 import { 
   CheckCircle, 
@@ -15,6 +16,7 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from 'lucide-react';
 
 interface TestStep {
@@ -77,6 +79,22 @@ export default function E2ETestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [expandedTest, setExpandedTest] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [clearing, setClearing] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+    isLoading?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'info',
+    onConfirm: () => {},
+  });
 
   const fetchTestResults = useCallback(async () => {
     setLoading(true);
@@ -107,6 +125,27 @@ export default function E2ETestsPage() {
     fetchTestResults();
   }, [fetchTestResults]);
 
+  // Separate effect for auto-refresh - only runs when autoRefresh is enabled
+  useEffect(() => {
+    if (!autoRefresh) {
+      return; // Don't set up interval if auto-refresh is disabled
+    }
+
+    const interval = setInterval(() => {
+      // Check current test results state first (no API call needed)
+      // Only refresh if there are active/running tests (not failed or errored)
+      const hasRunningTests = testResults.some(t => t.status === 'running');
+      
+      if (hasRunningTests) {
+        // Only make API call if we have running tests in current state
+        fetchTestResults();
+      }
+      // If no running tests, skip the refresh entirely (saves API calls)
+    }, 10000); // Refresh every 10 seconds for running tests (reduces API calls)
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchTestResults, testResults]);
+
   const handleRunTest = async () => {
     setRunning(true);
     setError(null);
@@ -129,6 +168,47 @@ export default function E2ETestsPage() {
     }
   };
 
+  const handleClearTests = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Clear All E2E Tests',
+      message: 'Are you sure you want to clear all E2E test results and remove all pending jobs from the queue? This action cannot be undone.',
+      variant: 'danger',
+      isLoading: clearing,
+      onConfirm: async () => {
+        setClearing(true);
+        setConfirmModal(prev => ({ ...prev, isLoading: true }));
+        setError(null);
+        try {
+          const result = await apiRequest<{ 
+            message: string; 
+            deleted_results: number; 
+            queue_cleared: boolean; 
+            queue_size_before_clear: number | null;
+          }>('/api/v1/e2e-tests/clear?clear_queue=true', {
+            method: 'DELETE',
+          });
+          
+          toast.success(
+            `Cleared ${result.deleted_results} test results${result.queue_cleared ? ` and ${result.queue_size_before_clear || 0} pending jobs` : ''}`
+          );
+          
+          // Close modal
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+          
+          // Refresh results to show empty state
+          await fetchTestResults();
+        } catch (err: any) {
+          setError(err.detail || 'Failed to clear E2E tests');
+          toast.error(err.detail || 'Failed to clear E2E tests');
+        } finally {
+          setClearing(false);
+          setConfirmModal(prev => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
+  };
+
   const toggleExpand = (testRunId: string) => {
     setExpandedTest(expandedTest === testRunId ? null : testRunId);
   };
@@ -148,24 +228,43 @@ export default function E2ETestsPage() {
           <h1 className="text-2xl font-bold text-gray-900">E2E Test Results</h1>
           <p className="text-gray-600 mt-1">Monitor end-to-end test execution and results</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={fetchTestResults}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            disabled={loading}
-          >
-            <RefreshCw className={`-ml-1 mr-2 h-5 w-5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-            Refresh
-          </button>
-          <button
-            onClick={handleRunTest}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            disabled={running || loading}
-          >
-            <Play className={`-ml-1 mr-2 h-5 w-5 ${running ? 'animate-spin' : ''}`} aria-hidden="true" />
-            {running ? 'Running...' : 'Run Test'}
-          </button>
-        </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                  autoRefresh 
+                    ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100' 
+                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                }`}
+              >
+                <RefreshCw className={`-ml-1 mr-2 h-5 w-5 ${autoRefresh ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={fetchTestResults}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={loading}
+              >
+                <RefreshCw className={`-ml-1 mr-2 h-5 w-5 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+                Refresh Now
+              </button>
+              <button
+                onClick={handleClearTests}
+                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                disabled={clearing || loading}
+              >
+                <Trash2 className={`-ml-1 mr-2 h-5 w-5 ${clearing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                {clearing ? 'Clearing...' : 'Clear All'}
+              </button>
+              <button
+                onClick={handleRunTest}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                disabled={running || loading}
+              >
+                <Play className={`-ml-1 mr-2 h-5 w-5 ${running ? 'animate-spin' : ''}`} aria-hidden="true" />
+                {running ? 'Running...' : 'Run Test'}
+              </button>
+            </div>
       </div>
 
       {/* Stats Overview */}
@@ -300,6 +399,12 @@ export default function E2ETestsPage() {
                               Steps: {passedSteps}/{totalSteps} passed
                             </span>
                           )}
+                          {test.status === 'running' && test.metadata?.current_step && (
+                            <span className="flex items-center text-blue-600 font-medium">
+                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                              Current: {test.metadata.current_step.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -321,9 +426,70 @@ export default function E2ETestsPage() {
                     </div>
                   )}
 
+                  {/* Show steps summary for running tests (even when collapsed) */}
+                  {test.status === 'running' && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-blue-900">Test Progress:</h4>
+                        {test.metadata?.steps_completed !== undefined && test.metadata?.steps_total !== undefined && (
+                          <span className="text-xs text-blue-700 font-medium">
+                            {test.metadata.steps_completed} / {test.metadata.steps_total} steps completed
+                          </span>
+                        )}
+                      </div>
+                      {test.steps && test.steps.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {test.steps.map((step, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-2 bg-white rounded border border-blue-100"
+                            >
+                              <div className="flex items-center space-x-2 flex-1">
+                                {step.status === 'passed' ? (
+                                  <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                ) : step.status === 'failed' ? (
+                                  <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                                ) : (
+                                  <div className="h-4 w-4 rounded-full border-2 border-blue-400 border-t-transparent animate-spin flex-shrink-0" />
+                                )}
+                                <span className={`text-sm font-medium ${getStepStatusColor(step.status)}`}>
+                                  {step.step.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                </span>
+                                {step.details && (
+                                  <span className="text-xs text-gray-600 truncate">- {step.details}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-2 text-xs text-gray-500 ml-2">
+                                {step.duration_ms && <span>{step.duration_ms.toFixed(0)}ms</span>}
+                              </div>
+                            </div>
+                          ))}
+                          {/* Show current step if available */}
+                          {test.metadata?.current_step && !test.steps.some(s => s.step === test.metadata?.current_step) && (
+                            <div className="flex items-center space-x-2 p-2 bg-blue-100 rounded border border-blue-200">
+                              <div className="h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin flex-shrink-0" />
+                              <span className="text-sm font-medium text-blue-900">
+                                {test.metadata.current_step.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} (in progress...)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-2 p-2 bg-white rounded border border-blue-100">
+                          <div className="h-4 w-4 rounded-full border-2 border-blue-600 border-t-transparent animate-spin flex-shrink-0" />
+                          <span className="text-sm text-blue-700">
+                            {test.metadata?.current_step 
+                              ? `Starting: ${test.metadata.current_step.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}...`
+                              : 'Initializing test...'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {isExpanded && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                      {/* Test Steps */}
+                      {/* Test Steps - Detailed View */}
                       {test.steps && test.steps.length > 0 && (
                         <div className="mb-4">
                           <h4 className="text-sm font-semibold text-gray-900 mb-2">Test Steps:</h4>
@@ -331,29 +497,64 @@ export default function E2ETestsPage() {
                             {test.steps.map((step, index) => (
                               <div
                                 key={index}
-                                className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                                className="flex items-start justify-between p-3 bg-gray-50 rounded-md border border-gray-200"
                               >
-                                <div className="flex items-center space-x-2">
-                                  <span className={`text-sm font-medium ${getStepStatusColor(step.status)}`}>
-                                    {step.step.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  </span>
-                                  {step.details && (
-                                    <span className="text-xs text-gray-500">- {step.details}</span>
-                                  )}
-                                </div>
-                                <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                  <span>{step.duration_ms.toFixed(0)}ms</span>
+                                <div className="flex items-start space-x-2 flex-1">
                                   {step.status === 'passed' ? (
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                    <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                                  ) : step.status === 'failed' ? (
+                                    <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                                   ) : (
-                                    <XCircle className="h-4 w-4 text-red-600" />
+                                    <div className="h-5 w-5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin flex-shrink-0 mt-0.5" />
                                   )}
+                                  <div className="flex-1">
+                                    <span className={`text-sm font-medium ${getStepStatusColor(step.status)}`}>
+                                      {step.step.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                    </span>
+                                    {step.details && (
+                                      <p className="text-xs text-gray-600 mt-1">{step.details}</p>
+                                    )}
+                                    {step.error && (
+                                      <p className="text-xs text-red-600 mt-1 font-medium">{step.error}</p>
+                                    )}
+                                  </div>
                                 </div>
-                                {step.error && (
-                                  <div className="mt-1 text-xs text-red-600">{step.error}</div>
-                                )}
+                                <div className="flex items-center space-x-2 text-xs text-gray-500 ml-4">
+                                  {step.duration_ms && <span>{step.duration_ms.toFixed(0)}ms</span>}
+                                </div>
                               </div>
                             ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Current Step Progress (for running tests) */}
+                      {test.status === 'running' && test.metadata?.current_step && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                          <div className="flex items-center space-x-2">
+                            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
+                            <div>
+                              <h4 className="text-sm font-semibold text-blue-900">Current Step:</h4>
+                              <p className="text-sm text-blue-700">
+                                {test.metadata.current_step.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                {test.metadata.current_step_status && (
+                                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                    test.metadata.current_step_status === 'passed' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : test.metadata.current_step_status === 'failed'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {test.metadata.current_step_status}
+                                  </span>
+                                )}
+                              </p>
+                              {test.metadata.steps_completed !== undefined && test.metadata.steps_total !== undefined && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                  Progress: {test.metadata.steps_completed} of {test.metadata.steps_total} steps completed
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -361,13 +562,15 @@ export default function E2ETestsPage() {
                       {/* Metadata */}
                       {test.metadata && (
                         <div className="mb-4">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Metadata:</h4>
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Test Configuration:</h4>
                           <div className="text-xs text-gray-600 space-y-1">
-                            {Object.entries(test.metadata).map(([key, value]) => (
-                              <div key={key}>
-                                <span className="font-medium">{key.replace(/_/g, ' ')}:</span> {String(value)}
-                              </div>
-                            ))}
+                            {Object.entries(test.metadata)
+                              .filter(([key]) => !['current_step', 'current_step_status', 'steps_completed', 'steps_total', 'steps_failed'].includes(key))
+                              .map(([key, value]) => (
+                                <div key={key}>
+                                  <span className="font-medium">{key.replace(/_/g, ' ')}:</span> {String(value)}
+                                </div>
+                              ))}
                           </div>
                         </div>
                       )}
@@ -386,6 +589,23 @@ export default function E2ETestsPage() {
           })}
         </div>
       )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => {
+          if (!confirmModal.isLoading) {
+            setConfirmModal({ ...confirmModal, isOpen: false });
+          }
+        }}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+        isLoading={confirmModal.isLoading}
+        confirmText="Clear All"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

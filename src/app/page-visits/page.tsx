@@ -49,13 +49,14 @@ export default function PageVisitsPage() {
   const [pagePath, setPagePath] = useState('');
   const [utmSource, setUtmSource] = useState('');
   const [deviceType, setDeviceType] = useState('');
+  const [country, setCountry] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchVisits();
-  }, [page, pagePath, utmSource, deviceType, startDate, endDate, search]);
+  }, [page, pagePath, utmSource, deviceType, country, startDate, endDate, search]);
 
   const fetchVisits = async () => {
     try {
@@ -70,6 +71,7 @@ export default function PageVisitsPage() {
       if (pagePath) params.append('page_path', pagePath);
       if (utmSource) params.append('utm_source', utmSource);
       if (deviceType) params.append('device_type', deviceType);
+      if (country) params.append('country', country);
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
@@ -95,6 +97,7 @@ export default function PageVisitsPage() {
     setPagePath('');
     setUtmSource('');
     setDeviceType('');
+    setCountry('');
     setStartDate('');
     setEndDate('');
     setPage(1);
@@ -231,6 +234,24 @@ export default function PageVisitsPage() {
                 </select>
               </div>
 
+              {/* Country Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Country
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., US, GB, DE"
+                  value={country}
+                  onChange={(e) => {
+                    setCountry(e.target.value.toUpperCase());
+                    setPage(1);
+                  }}
+                  maxLength={2}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+                />
+              </div>
+
               {/* Start Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -314,6 +335,9 @@ export default function PageVisitsPage() {
                         IP Address
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Country
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Device
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -333,7 +357,7 @@ export default function PageVisitsPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {visits.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                           No page visits found
                         </td>
                       </tr>
@@ -347,6 +371,18 @@ export default function PageVisitsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {visit.ip_address || '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {visit.country ? (
+                              <div className="flex items-center gap-2">
+                                <Globe className="w-4 h-4 text-gray-400" />
+                                <span className="text-sm font-medium text-gray-900">
+                                  {visit.country}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -445,6 +481,16 @@ export default function PageVisitsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">IP Address</label>
                   <p className="text-gray-900">{selectedVisit.ip_address || '-'}</p>
                 </div>
+
+                {selectedVisit.country && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-gray-400" />
+                      <p className="text-gray-900 font-medium">{selectedVisit.country}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Device Type</label>
